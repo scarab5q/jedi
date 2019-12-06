@@ -56,6 +56,9 @@ class AbstractSignature(_SignatureMixin):
     def bind(self, value):
         raise NotImplementedError
 
+    def matches_signature(self, arguments):
+        return True
+
     def __repr__(self):
         if self.value is self._function_value:
             return '<%s: %s>' % (self.__class__.__name__, self.value)
@@ -128,7 +131,6 @@ class BuiltinSignature(AbstractSignature):
         return self.value
 
     def bind(self, value):
-        assert not self.is_bound
         return BuiltinSignature(value, self._return_string, is_bound=True)
 
 

@@ -17,7 +17,7 @@ from jedi.inference.arguments import ValuesArguments, TreeArgumentsWrapper
 from jedi.inference.value.function import \
     FunctionValue, FunctionMixin, OverloadedFunctionValue, \
     BaseFunctionExecutionContext, FunctionExecutionContext
-from jedi.inference.value.klass import apply_py__get__, ClassFilter
+from jedi.inference.value.klass import ClassFilter
 from jedi.inference.value.dynamic_arrays import get_dynamic_array_instance
 
 
@@ -107,11 +107,23 @@ class AbstractInstanceValue(Value):
         call_funcs = self.py__getattribute__('__call__').py__get__(self, self.class_value)
         return [s.bind(self) for s in call_funcs.get_signatures()]
 
+    def get_function_slot_names(self, name):
+        # Searches for Python functions in classes.
+        return []
+
+    def execute_function_slots(self, names, *inferred_args):
+        return ValueSet.from_sets(
+            name.infer().execute_with_values(*inferred_args)
+            for name in names
+        )
+
     def __repr__(self):
         return "<%s of %s>" % (self.__class__.__name__, self.class_value)
 
 
 class CompiledInstance(AbstractInstanceValue):
+    # This is not really a compiled class, it's just an instance from a
+    # compiled class.
     def __init__(self, inference_state, parent_context, class_value, arguments):
         super(CompiledInstance, self).__init__(inference_state, parent_context,
                                                class_value)
@@ -129,9 +141,6 @@ class CompiledInstance(AbstractInstanceValue):
     @property
     def name(self):
         return compiled.CompiledValueName(self, self.class_value.name.string_name)
-
-    def is_compiled(self):
-        return True
 
     def is_stub(self):
         return False
@@ -263,7 +272,7 @@ class _BaseTreeInstance(AbstractInstanceValue):
 
         return ValueSet.from_sets(name.infer().execute(arguments) for name in names)
 
-    def py__get__(self, obj, class_value):
+    def py__get__(self, instance, class_value):
         """
         obj may be None.
         """
@@ -271,9 +280,9 @@ class _BaseTreeInstance(AbstractInstanceValue):
         # `method` is the new parent of the array, don't know if that's good.
         names = self.get_function_slot_names(u'__get__')
         if names:
-            if obj is None:
-                obj = compiled.builtin_from_name(self.inference_state, u'None')
-            return self.execute_function_slots(names, obj, class_value)
+            if instance is None:
+                instance = compiled.builtin_from_name(self.inference_state, u'None')
+            return self.execute_function_slots(names, instance, class_value)
         else:
             return ValueSet([self])
 
@@ -286,12 +295,6 @@ class _BaseTreeInstance(AbstractInstanceValue):
             if names:
                 return names
         return []
-
-    def execute_function_slots(self, names, *inferred_args):
-        return ValueSet.from_sets(
-            name.infer().execute_with_values(*inferred_args)
-            for name in names
-        )
 
 
 class TreeInstance(_BaseTreeInstance):
@@ -320,7 +323,8 @@ class TreeInstance(_BaseTreeInstance):
         for signature in self.class_value.py__getattribute__('__init__').get_signatures():
             # Just take the first result, it should always be one, because we
             # control the typeshed code.
-            if not signature.matches_signature(args):
+            if not signature.matches_signature(args) \
+                    or signature.value.tree_node is None:
                 # First check if the signature even matches, if not we don't
                 # need to infer anything.
                 continue
@@ -481,7 +485,7 @@ class LazyInstanceClassName(object):
     @iterator_to_value_set
     def infer(self):
         for result_value in self._class_member_name.infer():
-            for c in apply_py__get__(result_value, self._instance, self._instance.py__class__()):
+            for c in result_value.py__get__(self._instance, self._instance.py__class__()):
                 yield c
 
     def __getattr__(self, name):

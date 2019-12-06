@@ -335,7 +335,7 @@ def builtins_isinstance(objects, types, arguments, inference_state):
 
 
 class StaticMethodObject(ValueWrapper):
-    def py__get__(self, instance, klass):
+    def py__get__(self, instance, class_value):
         return ValueSet([self._wrapped_value])
 
 
@@ -819,10 +819,10 @@ class EnumInstance(LazyValueWrapper):
 
 
 def tree_name_to_values(func):
-    def wrapper(inference_state, value, tree_name):
-        if tree_name.value == 'sep' and value.is_module() and value.py__name__() == 'os.path':
+    def wrapper(inference_state, context, tree_name):
+        if tree_name.value == 'sep' and context.is_module() and context.py__name__() == 'os.path':
             return ValueSet({
                 compiled.create_simple_object(inference_state, os.path.sep),
             })
-        return func(inference_state, value, tree_name)
+        return func(inference_state, context, tree_name)
     return wrapper

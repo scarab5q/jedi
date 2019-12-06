@@ -93,7 +93,7 @@ class AbstractTreeName(AbstractNameDefinition):
         # In case of level == 1, it works always, because it's like a submodule
         # lookup.
         if import_node is not None and not (import_node.level == 1
-                                            and self.get_root_context().is_package):
+                                            and self.get_root_context().get_value().is_package()):
             # TODO improve the situation for when level is present.
             if include_module_names and not import_node.level:
                 return tuple(n.value for n in import_node.get_path_for_name(self.tree_name))
@@ -165,7 +165,7 @@ class AbstractTreeName(AbstractNameDefinition):
                 new_dotted.children[index - 1:] = []
                 values = context.infer_node(new_dotted)
                 return unite(
-                    value.goto(name, name_context=value.as_context())
+                    value.goto(name, name_context=context)
                     for value in values
                 )
 

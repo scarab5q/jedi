@@ -8,6 +8,7 @@ import sys
 
 from jedi.parser_utils import get_cached_code_lines
 
+from jedi._compatibility import unwrap
 from jedi import settings
 from jedi.inference import compiled
 from jedi.cache import underscore_memoization
@@ -21,7 +22,8 @@ from jedi.inference.compiled.access import compiled_objects_cache, \
     ALLOWED_GETITEM_TYPES, get_api_type
 from jedi.inference.compiled.value import create_cached_compiled_object
 from jedi.inference.gradual.conversion import to_stub
-from jedi.inference.context import CompiledContext, TreeContextMixin
+from jedi.inference.context import CompiledContext, CompiledModuleContext, \
+    TreeContextMixin
 
 _sentinel = object()
 
@@ -72,6 +74,8 @@ class MixedObject(ValueWrapper):
         raise SimpleGetItemNotFound
 
     def _as_context(self):
+        if self.parent_context is None:
+            return MixedModuleContext(self)
         return MixedContext(self)
 
     def __repr__(self):
@@ -85,6 +89,10 @@ class MixedContext(CompiledContext, TreeContextMixin):
     @property
     def compiled_object(self):
         return self._value.compiled_object
+
+
+class MixedModuleContext(CompiledModuleContext, MixedContext):
+    pass
 
 
 class MixedName(compiled.CompiledName):
@@ -153,7 +161,11 @@ def _load_module(inference_state, path):
 def _get_object_to_check(python_object):
     """Check if inspect.getfile has a chance to find the source."""
     if sys.version_info[0] > 2:
-        python_object = inspect.unwrap(python_object)
+        try:
+            python_object = unwrap(python_object)
+        except ValueError:
+            # Can return a ValueError when it wraps around
+            pass
 
     if (inspect.ismodule(python_object) or
             inspect.isclass(python_object) or
@@ -277,7 +289,7 @@ def _create(inference_state, access_handle, parent_context, *args):
                 file_io=file_io,
                 string_names=string_names,
                 code_lines=code_lines,
-                is_package=compiled_object.is_package,
+                is_package=compiled_object.is_package(),
             ).as_context()
             if name is not None:
                 inference_state.module_cache.add(string_names, ValueSet([module_context]))

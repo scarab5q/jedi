@@ -17,7 +17,7 @@ from jedi.inference.compiled.access import _sentinel
 from jedi.inference.cache import inference_state_function_cache
 from jedi.inference.helpers import reraise_getitem_errors
 from jedi.inference.signature import BuiltinSignature
-from jedi.inference.context import CompiledContext
+from jedi.inference.context import CompiledContext, CompiledModuleContext
 
 
 class CheckAttribute(object):
@@ -181,10 +181,12 @@ class CompiledObject(Value):
     def _ensure_one_filter(self, is_instance):
         return CompiledObjectFilter(self.inference_state, self, is_instance)
 
-    @CheckAttribute(u'__getitem__')
     def py__simple_getitem__(self, index):
         with reraise_getitem_errors(IndexError, KeyError, TypeError):
-            access = self.access_handle.py__simple_getitem__(index)
+            try:
+                access = self.access_handle.py__simple_getitem__(index)
+            except AttributeError:
+                return super(CompiledObject, self).py__simple_getitem__(index)
         if access is None:
             return NO_VALUES
 
@@ -262,6 +264,12 @@ class CompiledObject(Value):
             self.access_handle.execute_operation(other.access_handle, operator)
         )
 
+    def execute_annotation(self):
+        if self.access_handle.get_repr() == 'None':
+            # None as an annotation doesn't need to be executed.
+            return ValueSet([self])
+        return super(CompiledObject, self).execute_annotation()
+
     def negate(self):
         return create_from_access_path(self.inference_state, self.access_handle.negate())
 
@@ -269,6 +277,8 @@ class CompiledObject(Value):
         return NO_VALUES
 
     def _as_context(self):
+        if self.parent_context is None:
+            return CompiledModuleContext(self)
         return CompiledContext(self)
 
 
@@ -387,7 +397,7 @@ class CompiledObjectFilter(AbstractFilter):
     def get(self, name):
         return self._get(
             name,
-            lambda: self.compiled_object.access_handle.is_allowed_getattr(name),
+            lambda: self.compiled_object.access_handle.is_allowed_getattr(force_unicode(name)),
             lambda: self.compiled_object.access_handle.dir(),
             check_has_attribute=True
         )

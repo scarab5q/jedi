@@ -210,7 +210,15 @@ class Completion:
                 completion_names += self._global_completions()
                 completion_names += self._get_class_value_completions(is_function=False)
 
-            if 'trailer' in nonterminals:
+            # Apparently this looks like it's good enough to filter most cases
+            # so that signature completions don't randomly appear.
+            # To understand why this works, three things are important:
+            # 1. trailer with a `,` in it is either a subscript or an arglist.
+            # 2. If there's no `,`, it's at the start and only signatures start
+            #    with `(`. Other trailers could start with `.` or `[`.
+            # 3. Decorators are very primitive and have an optional `(` with
+            #    optional arglist in them.
+            if nodes[-1] in ['(', ','] and nonterminals[-1] in ('trailer', 'arglist', 'decorator'):
                 call_signatures = self._call_signatures_callback()
                 completion_names += get_call_signature_param_names(call_signatures)
 
@@ -283,6 +291,9 @@ class Completion:
 
 
 def _extract_string_while_in_string(leaf, position):
+    if position < leaf.start_pos:
+        return None, None
+
     if leaf.type == 'string':
         match = re.match(r'^\w*(\'{3}|"{3}|\'|")', leaf.value)
         quote = match.group(1)

@@ -91,7 +91,7 @@ def test_correct_zip_package_behavior(Script, inference_state, environment, code
     value, = pkg._name.infer()
     assert value.py__file__() == os.path.join(pkg_zip_path, 'pkg', file)
     assert '.'.join(value.py__package__()) == package
-    assert value.is_package is (path is not None)
+    assert value.is_package() is (path is not None)
     if path is not None:
         assert value.py__path__() == [os.path.join(pkg_zip_path, path)]
 
@@ -115,6 +115,8 @@ def test_find_module_not_package_zipped(Script, inference_state, environment):
 def test_import_not_in_sys_path(Script):
     """
     non-direct imports (not in sys.path)
+
+    This is in the end just a fallback.
     """
     a = Script(path='module.py', line=5).goto_definitions()
     assert a[0].name == 'int'
@@ -341,7 +343,7 @@ def test_get_modules_containing_name(inference_state, path, goal, is_package):
 def test_load_module_from_path(inference_state, path, base_names, is_package, names):
     file_io = KnownContentFileIO(path, '')
     m = imports._load_module_from_path(inference_state, file_io, base_names)
-    assert m.is_package == is_package
+    assert m.is_package() == is_package
     assert m.string_names == names
 
 

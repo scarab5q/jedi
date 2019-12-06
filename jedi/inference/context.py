@@ -298,14 +298,6 @@ class ModuleContext(TreeContextMixin, ValueContext):
     def py__file__(self):
         return self._value.py__file__()
 
-    @property
-    def py__package__(self):
-        return self._value.py__package__
-
-    @property
-    def is_package(self):
-        return self._value.is_package
-
     def get_filters(self, until_position=None, origin_scope=None):
         filters = self._value.get_filters(origin_scope)
         # Skip the first filter and replace it.
@@ -341,6 +333,9 @@ class ModuleContext(TreeContextMixin, ValueContext):
 class NamespaceContext(TreeContextMixin, ValueContext):
     def get_filters(self, until_position=None, origin_scope=None):
         return self._value.get_filters()
+
+    def get_value(self):
+        return self._value
 
     def py__file__(self):
         return self._value.py__file__()
@@ -378,8 +373,16 @@ class CompiledContext(ValueContext):
     def get_filters(self, until_position=None, origin_scope=None):
         return self._value.get_filters()
 
+
+class CompiledModuleContext(CompiledContext):
+    code_lines = None
+
     def get_value(self):
         return self._value
+
+    @property
+    def string_names(self):
+        return self._value.string_names
 
     def py__file__(self):
         return self._value.py__file__()

@@ -99,6 +99,8 @@ def tuple(p, q, r):
     """
     #? int()
     p[0]
+    #? ['index']
+    p.index
     #? int()
     q[0]
     #? str()
@@ -214,7 +216,7 @@ def union(p, q, r, s, t):
     r
     #? int() str() float() dict()
     s
-    #? int()
+    #? int() None
     t
 
 def optional(p):
@@ -363,6 +365,17 @@ in_out1(str())
 #?
 in_out1()
 
+def type_in_out1(x: typing.Type[TYPE_VARX]) -> TYPE_VARX: ...
+
+#? int()
+type_in_out1(int)
+#? str()
+type_in_out1(str)
+#? float()
+type_in_out1(float)
+#?
+type_in_out1()
+
 def in_out2(x: TYPE_VAR_CONSTRAINTSX) -> TYPE_VAR_CONSTRAINTSX: ...
 
 #? int()
@@ -376,6 +389,18 @@ in_out2()
 # TODO this should actually be str() int(), because of the constraints.
 #? float()
 in_out2(1.0)
+
+def type_in_out2(x: typing.Type[TYPE_VAR_CONSTRAINTSX]) -> TYPE_VAR_CONSTRAINTSX: ...
+
+#? int()
+type_in_out2(int)
+#? str()
+type_in_out2(str)
+#? str() int()
+type_in_out2()
+# TODO this should actually be str() int(), because of the constraints.
+#? float()
+type_in_out2(float)
 
 # -------------------------
 # TYPE_CHECKING
